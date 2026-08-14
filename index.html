@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chizuvchi — Kamera Eskizi</title>
+<style>
+  :root{
+    --paper:#161310;
+    --paper2:#1f1a15;
+    --frame:#2a2119;
+    --ink:#f2ead9;
+    --gold:#c9a24b;
+    --gold-dim:#9a7a34;
+    --ember:#c1522d;
+    --line:#3d332a;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, #251d16 0%, var(--paper) 55%);
+    color:var(--ink);
+    font-family: 'Georgia', 'Times New Roman', serif;
+    min-height:100vh;
+  }
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:44px 22px 70px;
+  }
+  header{
+    text-align:center;
+    margin-bottom:30px;
+  }
+  .eyebrow{
+    font-family: 'Courier New', monospace;
+    font-size:11px;
+    letter-spacing:4px;
+    text-transform:uppercase;
+    color:var(--gold-dim);
+    margin-bottom:8px;
+  }
+  h1{
+    font-weight:400;
+    font-style:italic;
+    font-size:clamp(30px,6vw,46px);
+    margin:0;
+    letter-spacing:0.5px;
+    color:var(--ink);
+  }
+  h1 em{
+    font-style:normal;
+    color:var(--gold);
+    font-weight:700;
+  }
+  .stage-outer{
+    position:relative;
+    padding:16px;
+    background: linear-gradient(155deg, var(--frame), #1a140e 70%);
+    border-radius:6px;
+    box-shadow:
+      0 0 0 1px var(--line),
+      0 30px 60px rgba(0,0,0,0.55),
+      inset 0 0 0 1px rgba(201,162,75,0.15);
+  }
+  .stage{
+    position:relative;
+    background:#0b0906;
+    border-radius:3px;
+    overflow:hidden;
+    aspect-ratio: 4/3;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.6);
+  }
+  .stage::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    box-shadow: inset 0 0 90px rgba(0,0,0,0.55);
+  }
+  video{ display:none; }
+  canvas{
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  #liveCanvas, #drawCanvas{
+    position:absolute;
+    top:0; left:0;
+  }
+  #drawCanvas{ display:none; }
+
+  .placeholder{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    color:var(--ink);
+    text-align:center;
+    padding:20px;
+    z-index:5;
+  }
+  .placeholder .mark{
+    font-size:34px;
+    color:var(--gold);
+    opacity:0.9;
+  }
+  .placeholder p{
+    max-width:320px;
+    font-size:13px;
+    line-height:1.7;
+    opacity:0.65;
+    margin:0;
+    font-family: 'Courier New', monospace;
+  }
+
+  .countdown-overlay{
+    position:absolute;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(11,9,6,0.35);
+    z-index:6;
+  }
+  .countdown-num{
+    font-size:120px;
+    font-weight:700;
+    color:var(--gold);
+    text-shadow: 0 0 40px rgba(201,162,75,0.6);
+    font-family:'Courier New', monospace;
+  }
+
+  .flash{
+    position:absolute;
+    inset:0;
+    background:#fff;
+    opacity:0;
+    pointer-events:none;
+    z-index:7;
+  }
+
+  button{
+    font-family:'Courier New', monospace;
+    cursor:pointer;
+    border:1px solid var(--gold-dim);
+    background:transparent;
+    color:var(--gold);
+    padding:12px 24px;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    font-weight:bold;
+    border-radius:2px;
+    transition:all 0.18s ease;
+  }
+  button.primary{
+    background:var(--gold);
+    color:#1a140e;
+    border-color:var(--gold);
+  }
+  button:hover:not(:disabled){
+    background:var(--gold);
+    color:#1a140e;
+    transform:translateY(-1px);
+  }
+  button:disabled{
+    opacity:0.35;
+    cursor:not-allowed;
+    transform:none;
+  }
+  button.ember{
+    border-color:var(--ember);
+    color:var(--ember);
+  }
+  button.ember:hover:not(:disabled){
+    background:var(--ember);
+    color:var(--ink);
+  }
+
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    align-items:center;
+    justify-content:center;
+    margin-top:26px;
+  }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .slider-group{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:var(--gold-dim);
+    font-family:'Courier New', monospace;
+  }
+  input[type=range]{
+    width:110px;
+    accent-color:var(--gold);
+  }
+  .status{
+    margin-top:16px;
+    font-size:12px;
+    color:var(--gold-dim);
+    text-align:center;
+    min-height:18px;
+    font-family:'Courier New', monospace;
+  }
+  .status.err{ color:var(--ember); font-weight:bold; }
+  footer{
+    margin-top:36px;
+    font-size:10.5px;
+    color:var(--gold-dim);
+    opacity:0.55;
+    letter-spacing:1px;
+    text-align:center;
+    font-family:'Courier New', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Live Portrait Study</div>
+    <h1>Chizuvchi<em>.</em></h1>
+  </header>
+
+  <div class="stage-outer">
+    <div class="stage" id="stage">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="liveCanvas"></canvas>
+      <canvas id="drawCanvas"></canvas>
+      <div class="countdown-overlay" id="countdownOverlay">
+        <div class="countdown-num" id="countdownNum">3</div>
+      </div>
+      <div class="flash" id="flash"></div>
+      <div class="placeholder" id="placeholder">
+        <div class="mark">◈</div>
+        <p>Kamerani yoqing. Tayyor bo'lganingizda, hisoblagich sanaydi va yuzingiz chang zarralaridan chizib chiqiladi.</p>
+        <button id="startBtn" class="primary">Kamerani yoqish</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls" id="controls" style="display:none;">
+    <div class="btn-row">
+      <button id="captureBtn" class="primary">Chizishni boshlash</button>
+      <button id="liveBtn">Kameraga qaytish</button>
+      <button id="saveBtn">Saqlash</button>
+      <button id="stopBtn" class="ember">To'xtatish</button>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="slider-group">
+      Sanoq: <span id="countdownVal">3</span>s
+      <input type="range" id="countdownSlider" min="1" max="5" value="3">
+    </div>
+    <div class="slider-group">
+      Sezgirlik
+      <input type="range" id="threshold" min="10" max="120" value="40">
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+  <footer>QALAM.SIM — barcha ishlov brauzeringizda amalga oshadi, hech qanday tasvir tashqariga yuborilmaydi</footer>
+</div>
+
+<script>
+const video = document.getElementById('video');
+const liveCanvas = document.getElementById('liveCanvas');
+const drawCanvas = document.getElementById('drawCanvas');
+const lctx = liveCanvas.getContext('2d', { willReadFrequently: true });
+const dctx = drawCanvas.getContext('2d');
+const placeholder = document.getElementById('placeholder');
+const controls = document.getElementById('controls');
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startBtn');
+const captureBtn = document.getElementById('captureBtn');
+const liveBtn = document.getElementById('liveBtn');
+const saveBtn = document.getElementById('saveBtn');
+const stopBtn = document.getElementById('stopBtn');
+const thresholdSlider = document.getElementById('threshold');
+const countdownSlider = document.getElementById('countdownSlider');
+const countdownVal = document.getElementById('countdownVal');
+const countdownOverlay = document.getElementById('countdownOverlay');
+const countdownNum = document.getElementById('countdownNum');
+const flashEl = document.getElementById('flash');
+
+let stream = null;
+let rafId = null;
+let particleRafId = null;
+let mode = 'live'; // live | drawing | done
+
+countdownSlider.addEventListener('input', () => {
+  countdownVal.textContent = countdownSlider.value;
+});
+
+function setStatus(msg, isErr){
+  statusEl.textContent = msg || '';
+  statusEl.className = 'status' + (isErr ? ' err' : '');
+}
+
+async function startCamera(){
+  setStatus('Kameraga ruxsat so\'ralmoqda...');
+  startBtn.disabled = true;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 480;
+    [liveCanvas, drawCanvas].forEach(c => { c.width = vw; c.height = vh; });
+
+    placeholder.style.display = 'none';
+    controls.style.display = 'flex';
+    mode = 'live';
+    drawCanvas.style.display = 'none';
+    liveCanvas.style.display = 'block';
+    setStatus('Kamera yoniq. Tayyor bo\'lsangiz "Chizishni boshlash" ni bosing.');
+    liveLoop();
+  }catch(err){
+    console.error(err);
+    setStatus('Kameraga ruxsat berilmadi yoki kamera topilmadi.', true);
+    startBtn.disabled = false;
+  }
+}
+
+function stopCamera(){
+  if(rafId) cancelAnimationFrame(rafId);
+  if(particleRafId) cancelAnimationFrame(particleRafId);
+  rafId = null; particleRafId = null;
+  if(stream){
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  placeholder.style.display = 'flex';
+  controls.style.display = 'none';
+  startBtn.disabled = false;
+  mode = 'live';
+  setStatus('To\'xtatildi.');
+}
+
+function liveLoop(){
+  if(mode !== 'live'){ return; }
+  const w = liveCanvas.width, h = liveCanvas.height;
+  lctx.save();
+  lctx.translate(w, 0);
+  lctx.scale(-1, 1);
+  lctx.drawImage(video, 0, 0, w, h);
+  lctx.restore();
+  rafId = requestAnimationFrame(liveLoop);
+}
+
+function backToLive(){
+  if(particleRafId) cancelAnimationFrame(particleRafId);
+  mode = 'live';
+  drawCanvas.style.display = 'none';
+  liveCanvas.style.display = 'block';
+  setStatus('Kamera yoniq.');
+  liveLoop();
+}
+
+function runCountdown(seconds, onDone){
+  countdownOverlay.style.display = 'flex';
+  let n = seconds;
+  countdownNum.textContent = n;
+  const tick = () => {
+    n -= 1;
+    if(n > 0){
+      countdownNum.textContent = n;
+      setTimeout(tick, 1000);
+    } else {
+      countdownOverlay.style.display = 'none';
+      onDone();
+    }
+  };
+  setTimeout(tick, 1000);
+}
+
+function flashScreen(){
+  flashEl.style.transition = 'none';
+  flashEl.style.opacity = '0.9';
+  requestAnimationFrame(() => {
+    flashEl.style.transition = 'opacity 0.4s ease';
+    flashEl.style.opacity = '0';
+  });
+}
+
+function sobelEdgePoints(imageData, threshold){
+  const { data, width, height } = imageData;
+  const gray = new Uint8ClampedArray(width * height);
+  for(let i = 0, p = 0; i < data.length; i += 4, p++){
+    gray[p] = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114);
+  }
+  const gxK = [-1,0,1,-2,0,2,-1,0,1];
+  const gyK = [-1,-2,-1,0,0,0,1,2,1];
+  const points = [];
+
+  for(let y = 1; y < height - 1; y++){
+    for(let x = 1; x < width - 1; x++){
+      let gx = 0, gy = 0, k = 0;
+      for(let j = -1; j <= 1; j++){
+        for(let i = -1; i <= 1; i++){
+          const val = gray[(y+j)*width + (x+i)];
+          gx += val * gxK[k];
+          gy += val * gyK[k];
+          k++;
+        }
+      }
+      const mag = Math.sqrt(gx*gx + gy*gy);
+      if(mag > threshold){
+        const idx = (y * width + x) * 4;
+        points.push({ x, y, mag, r: data[idx], g: data[idx+1], b: data[idx+2] });
+      }
+    }
+  }
+  return points;
+}
+
+function capturePhoto(){
+  const seconds = parseInt(countdownSlider.value, 10);
+  captureBtn.disabled = true;
+  setStatus('Tayyorlaning...');
+  runCountdown(seconds, () => {
+    flashScreen();
+    const w = liveCanvas.width, h = liveCanvas.height;
+    const frame = lctx.getImageData(0, 0, w, h);
+    setStatus('Chizilmoqda...');
+    mode = 'drawing';
+    liveCanvas.style.display = 'none';
+    drawCanvas.style.display = 'block';
+    dctx.fillStyle = '#0b0906';
+    dctx.fillRect(0, 0, w, h);
+
+    const threshold = parseInt(thresholdSlider.value, 10);
+    let points = sobelEdgePoints(frame, threshold);
+
+    const maxParticles = 3800;
+    if(points.length > maxParticles){
+      const step = points.length / maxParticles;
+      const sampled = [];
+      for(let i = 0; i < maxParticles; i++){
+        sampled.push(points[Math.floor(i * step)]);
+      }
+      points = sampled;
+    }
+
+    animateDustDraw(points, w, h);
+  });
+}
+
+function animateDustDraw(points, w, h){
+  const particles = points.map(p => {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.max(w, h) * (0.5 + Math.random() * 0.6);
+    return {
+      x: w/2 + Math.cos(angle) * dist,
+      y: h/2 + Math.sin(angle) * dist,
+      tx: p.x,
+      ty: p.y,
+      startDelay: Math.random() * 0.5,
+      size: 0.6 + Math.random() * 1.6
+    };
+  });
+
+  const duration = 1.6;
+  const totalTime = duration + 0.5;
+  const startTime = performance.now();
+
+  dctx.fillStyle = '#0b0906';
+  dctx.fillRect(0, 0, w, h);
+
+  function frame(now){
+    const t = (now - startTime) / 1000;
+    dctx.fillStyle = 'rgba(11,9,6,0.35)';
+    dctx.fillRect(0, 0, w, h);
+
+    let allDone = true;
+    for(const p of particles){
+      const localT = (t - p.startDelay) / duration;
+      if(localT < 0){ allDone = false; continue; }
+      const clamped = Math.min(localT, 1);
+      if(clamped < 1) allDone = false;
+      const eased = 1 - Math.pow(1 - clamped, 3);
+      const cx = p.x + (p.tx - p.x) * eased;
+      const cy = p.y + (p.ty - p.y) * eased;
+      const alpha = 0.35 + 0.65 * eased;
+      const size = p.size * (1.6 - 0.6 * eased);
+
+      dctx.fillStyle = `rgba(242, 234, 217, ${alpha})`;
+      dctx.beginPath();
+      dctx.arc(cx, cy, size, 0, Math.PI * 2);
+      dctx.fill();
+    }
+
+    if(!allDone && t < totalTime){
+      particleRafId = requestAnimationFrame(frame);
+    } else {
+      dctx.fillStyle = '#0b0906';
+      dctx.fillRect(0, 0, w, h);
+      dctx.fillStyle = 'rgba(242, 234, 217, 0.9)';
+      for(const p of particles){
+        dctx.beginPath();
+        dctx.arc(p.tx, p.ty, 0.9, 0, Math.PI * 2);
+        dctx.fill();
+      }
+      mode = 'done';
+      captureBtn.disabled = false;
+      setStatus('Tayyor. Saqlashingiz yoki qayta chizishingiz mumkin.');
+    }
+  }
+  particleRafId = requestAnimationFrame(frame);
+}
+
+function savePNG(){
+  const source = (mode === 'drawing' || mode === 'done') ? drawCanvas : liveCanvas;
+  const link = document.createElement('a');
+  link.download = 'chizuvchi-eskiz.png';
+  link.href = source.toDataURL('image/png');
+  link.click();
+  setStatus('Rasm yuklab olindi.');
+}
+
+startBtn.addEventListener('click', startCamera);
+stopBtn.addEventListener('click', stopCamera);
+captureBtn.addEventListener('click', capturePhoto);
+liveBtn.addEventListener('click', backToLive);
+saveBtn.addEventListener('click', savePNG);
+
+window.addEventListener('beforeunload', stopCamera);
+</script>
+</body>
+</html>
