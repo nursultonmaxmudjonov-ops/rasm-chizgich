@@ -469,6 +469,7 @@ function animateDustDraw(points, w, h){
       y: h/2 + Math.sin(angle) * dist,
       tx: p.x,
       ty: p.y,
+      r: p.r, g: p.g, b: p.b,
       startDelay: Math.random() * 0.5,
       size: 0.6 + Math.random() * 1.6
     };
@@ -498,7 +499,7 @@ function animateDustDraw(points, w, h){
       const alpha = 0.35 + 0.65 * eased;
       const size = p.size * (1.6 - 0.6 * eased);
 
-      dctx.fillStyle = `rgba(242, 234, 217, ${alpha})`;
+      dctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${alpha})`;
       dctx.beginPath();
       dctx.arc(cx, cy, size, 0, Math.PI * 2);
       dctx.fill();
@@ -509,8 +510,8 @@ function animateDustDraw(points, w, h){
     } else {
       dctx.fillStyle = '#0b0906';
       dctx.fillRect(0, 0, w, h);
-      dctx.fillStyle = 'rgba(242, 234, 217, 0.9)';
       for(const p of particles){
+        dctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, 0.95)`;
         dctx.beginPath();
         dctx.arc(p.tx, p.ty, 0.9, 0, Math.PI * 2);
         dctx.fill();
