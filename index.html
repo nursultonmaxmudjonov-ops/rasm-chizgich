@@ -397,7 +397,9 @@ function flashScreen(){
   });
 }
 
-function sobelEdgePoints(imageData, threshold){
+function buildStipplePoints(imageData, threshold){
+  // threshold (10-120 from slider) controls DENSITY: lower = denser/fuller,
+  // higher = sparser/more edge-only. Full frame is covered, not just edges.
   const { data, width, height } = imageData;
   const gray = new Uint8ClampedArray(width * height);
   for(let i = 0, p = 0; i < data.length; i += 4, p++){
@@ -406,6 +408,11 @@ function sobelEdgePoints(imageData, threshold){
   const gxK = [-1,0,1,-2,0,2,-1,0,1];
   const gyK = [-1,-2,-1,0,0,0,1,2,1];
   const points = [];
+
+  // Lower slider value -> denser fill everywhere.
+  // Higher slider value -> sparser, edge-biased.
+  const baseDensity = Math.max(0.02, 0.16 - threshold * 0.0011); // flat-area fill chance
+  const edgeScale = threshold * 3.2; // how quickly edges saturate to full density
 
   for(let y = 1; y < height - 1; y++){
     for(let x = 1; x < width - 1; x++){
@@ -419,7 +426,10 @@ function sobelEdgePoints(imageData, threshold){
         }
       }
       const mag = Math.sqrt(gx*gx + gy*gy);
-      if(mag > threshold){
+      const normalizedMag = Math.min(mag / edgeScale, 1);
+      const density = baseDensity + normalizedMag * (0.97 - baseDensity);
+
+      if(Math.random() < density){
         const idx = (y * width + x) * 4;
         points.push({ x, y, mag, r: data[idx], g: data[idx+1], b: data[idx+2] });
       }
@@ -444,9 +454,9 @@ function capturePhoto(){
     dctx.fillRect(0, 0, w, h);
 
     const threshold = parseInt(thresholdSlider.value, 10);
-    let points = sobelEdgePoints(frame, threshold);
+    let points = buildStipplePoints(frame, threshold);
 
-    const maxParticles = 3800;
+    const maxParticles = 9000;
     if(points.length > maxParticles){
       const step = points.length / maxParticles;
       const sampled = [];
@@ -471,7 +481,7 @@ function animateDustDraw(points, w, h){
       ty: p.y,
       r: p.r, g: p.g, b: p.b,
       startDelay: Math.random() * 0.5,
-      size: 0.6 + Math.random() * 1.6
+      size: 0.5 + Math.random() * 1.2
     };
   });
 
